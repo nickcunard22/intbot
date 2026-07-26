@@ -3,8 +3,6 @@ import os
 import requests
 from time import sleep
 
-os.chdir("c:\\Users\\nickc\\Documents\\Projects\\intbot")
-
 #.env import
 from dotenv import load_dotenv
 
@@ -37,9 +35,11 @@ def handle_errors(specific_key=None):
             try:
                 response = func(*args, **kwargs)
             except requests.exceptions.Timeout:
-                print("Request timed out. Trying again")
+                print("Request timed out. Trying again: ")
                 return wrapper(*args, **kwargs)
-
+            except TypeError as e:
+                print(e + "\n" + response + "\nTrying again: ")
+                return wrapper(*args, **kwargs)
             match response.status_code:
                 case 200:
                     if specific_key is None:

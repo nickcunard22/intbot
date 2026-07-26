@@ -1,6 +1,6 @@
 import asyncio
 import json
-from datetime import datetime
+import logging
 
 # pycord imports
 import discord
@@ -9,14 +9,16 @@ from discord import option
 
 # .env import
 from dotenv import load_dotenv
+from os import getenv
 
-from riot_api_requests import *
-from performance_tracking import *
+from riot_api_requests import ResponseError, get_puuid, get_match, get_active_match
+from performance_tracking import match_performance
 from Player import update_players_list
 
 # setup token from .env
 load_dotenv()
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+DISCORD_TOKEN = getenv("DISCORD_TOKEN")
+
 
 # personal server, evil gang
 guild_ids = [1240038741381484544, 1038910618259951757]
@@ -29,7 +31,7 @@ with open("squad.json", "r+", encoding="utf-8") as file:
 
 @bot.event
 async def on_ready():
-    print("Started")
+    logger.info("Started")
 
 
 @bot.slash_command(
@@ -94,25 +96,25 @@ async def in_game_check(player, match_id):  # small loop
             recent_match = get_match(f"NA1_{match_id}")
         except ResponseError as e:
             if int(e) == 404:
-                print(
-                    f"[{datetime.now().strftime("%H:%M:%S")}] {player.summoner_name} still in game"
+                logger.info(
+                    f"{player.summoner_name} still in game"
                 )
                 await asyncio.sleep(12)
             else:
-                print(f"Error: {int(e)} {str(e)}")
+                logger.info(f"Error: {int(e)} {str(e)}")
         except Exception as e:
-            print(e)
+            logger.info(e)
         else:
             player.in_game = False
-            print(
-                f"[{datetime.now().strftime("%H:%M:%S")}] {player.summoner_name} no longer in game"
+            logger.info(
+                f"{player.summoner_name} no longer in game"
             )
             # SEND FNUNUY MESSGAE
             channel = await bot.fetch_channel(1166600969426051082)  # tylers-ints
             try:
                 await channel.send(match_performance(player, recent_match))
             except UnboundLocalError:
-                print(player.summoner_name + ": no performance")
+                logger.info(player.summoner_name + ": no performance")
 
 
 async def player_loop_check():  # big loop
@@ -127,23 +129,37 @@ async def player_loop_check():  # big loop
                     active_match = get_active_match(player.puuid)
                 except ResponseError as e:
                     if int(e) == 404:
-                        print(
-                            f"[{datetime.now().strftime("%H:%M:%S")}] {player.summoner_name} not in game"
+                        logger.info(
+                            f"{player.summoner_name} not in game"
                         )
                     else:
-                        print(f"Error: {int(e)} {str(e)}")
+                        logger.info(f"Error: {int(e)} {str(e)}")
                 else:  # player IS in game
                     game_id = active_match["gameId"]
                     player.in_game = True
-                    print(
-                        f"[{datetime.now().strftime("%H:%M:%S")}] {player.summoner_name} in game"
+                    logger.info(
+                        f"{player.summoner_name} in game"
                     )
                     asyncio.ensure_future(in_game_check(player, game_id))
 
         await asyncio.sleep(5 * 60)
 
+def exception_handler(loop, context):
+    exception = context["exception"]
+    message = context["message"]
+    logger.error(f"Error: {exception}\nMessage: {message}")
+
+#setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger()
 
 loop = asyncio.get_event_loop()
+loop.set_exception_handler(exception_handler) #might not work
 
 asyncio.ensure_future(player_loop_check())
 asyncio.ensure_future(bot.start(DISCORD_TOKEN))
