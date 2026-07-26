@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intbot"
+version = "0.1.0"
+description = "Discord bot that calls out league performances"
+requires-python = ">=3.10"
+dependencies = [
+    "py-cord==2.6.1",
+    "python-dotenv==1.0.1",
+    "httpx==0.28.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+]
+
+[project.scripts]
+intbot = "intbot.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
